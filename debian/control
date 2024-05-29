@@ -1,0 +1,12 @@
+Source: alsa-scarlett-gui
+Maintainer: Robert Garrett <robertgarrett404@gmail.com>
+Section: misc
+Priority: optional
+Standards-Version: 4.6.2
+Build-Depends: debhelper-compat (= 13), libasound2-dev, libgtk-4-dev, 
+
+Package: alsa-scarlett-gui
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: GUI tool for Scarlett audio interfaces.
+ Uses an ALSA backend.
