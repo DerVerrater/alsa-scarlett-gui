@@ -1,4 +1,27 @@
-alsa-scarlett-gui (0.1-1) UNRELEASED; urgency=medium
+alsa-scarlett-gui (0.2-1) UNRELEASED; urgency=low
+
+  [ Geoffrey D. Bennett ]
+  * Note lack of keyboard accelerators
+  * Add demo GIF
+  * Fix size of mixer output sockets on Gen 3 18i20 routing
+  * Reduce button padding as intended
+  * Display input labels across the top of the mixer window
+  * Reformat CSS to not be so squishy
+  * Change route-label hover background colour to work with dark theme
+  * Add desktop and icon files and install into the correct place
+  * Add copyright info to the Makefile
+  * Don't hardcode the version number in the about dialog
+
+  [ KottV ]
+  * Fix linking in OBS
+
+  [ Geoffrey D. Bennett ]
+  * Add help target to src/Makefile
+  * Add top-level Makefile and RPM spec file for packaging
+
+ -- Robert Garrett <robertgarrett404@gmail.com>  Wed, 29 May 2024 20:50:46 -0500
+
+alsa-scarlett-gui (0.1-1) UNRELEASED; urgency=low
 
   * Initial revision, starting up a package manifest.
   * Drop pbuilder settings from gbp.conf
