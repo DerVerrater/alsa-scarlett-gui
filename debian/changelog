@@ -19,7 +19,13 @@ alsa-scarlett-gui (0.2-1) UNRELEASED; urgency=low
   * Add help target to src/Makefile
   * Add top-level Makefile and RPM spec file for packaging
 
- -- Robert Garrett <robertgarrett404@gmail.com>  Wed, 29 May 2024 20:50:46 -0500
+  [ Robert Garrett ]
+  * Drop the backported link ordering patch
+  * Update changelog via gbp dch
+  * Create a copyright file
+  * Adjust the copyright file a bit...
+
+ -- Robert Garrett <robertgarrett404@gmail.com>  Mon, 09 Jun 2025 20:21:13 -0500
 
 alsa-scarlett-gui (0.1-1) UNRELEASED; urgency=low
 
