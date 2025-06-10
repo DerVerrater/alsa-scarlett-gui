@@ -1,3 +1,36 @@
+alsa-scarlett-gui (0.5.1-1) unstable; urgency=medium
+
+  [ Geoffrey D. Bennett ]
+  * Add RTFM advice to FAQ.md
+  * Replace '/" with ’/“/” in *.md
+  * Add information about alsa-state and alsa-restore to FAQ.md
+
+  [ Pro-pra ]
+  * Use template spec with macros
+
+  [ Geoffrey D. Bennett ]
+  * Improve "settings keep resetting" FAQ entry
+  * Replace 1st Gen Startup Controls info with Startup Configuration
+  * Disable the startup menu option for 1st Gen devices
+  * Move card init from alsa_scan_cards() to new card_init() function
+  * Add driver type detection
+  * Add support for waiting for FCP driver initialisation
+  * Don't attempt to attach unused routing_mixer_in_grid
+  * Replace hwdep check in window-startup.c with driver_type check
+  * Add support for rebooting devices using the FCP socket interface
+  * Update window-hardware with big 4th Gen and Vocaster models
+  * Change alsa_get_elem_int_values() to return longs rather than ints
+
+  [ runiq ]
+  * Add alsactl utility
+  * Remove superfluous files from Flatpak
+  * More Flatpak manifest cleanup
+
+  [ Robert Garrett ]
+  * Change default compression to xz level 9
+
+ -- Robert Garrett <robertgarrett404@gmail.com>  Mon, 09 Jun 2025 22:37:54 -0500
+
 alsa-scarlett-gui (0.5.0-1) unstable; urgency=medium
 
   [ Geoffrey D. Bennett ]
