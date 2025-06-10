@@ -1,3 +1,184 @@
+alsa-scarlett-gui (0.4.0-1) UNRELEASED; urgency=low
+
+  [ Guillaume ]
+  * Fix deb package icon install
+
+  [ Geoffrey D. Bennett ]
+  * Update Makefile to get version from $APP_VERSION
+  * Global replace "destination" with "sink"
+
+  [ fenugrec ]
+  * Replace deprecated gtk_widget_{show,hide} calls
+  * Reduce code duplication in menu.c
+
+  [ Geoffrey D. Bennett ]
+  * Add Clarett USB/Clarett+ models to window-hardware.c
+  * Pass APP_VERSION through flatpak-builder
+  * Check Firmware Version before enabling Levels menu item
+  * Remove user-control of level meters
+  * Improve layout for larger interfaces without speaker switching
+  * Fix the socket widget so that it will not shrink
+  * Allow the routing window to be resized and give it scrollbars
+  * Fix typo rounting -> routing
+  * Update drag_motion() to scroll the routing window
+
+  [ sporksnail ]
+  * src/Makefile: Respect CFLAGS from environment
+
+  [ Geoffrey D. Bennett ]
+  * Update README.md with Gen 4 info
+  * Update software name in INSTALL.md and USAGE.md
+  * Add info to INSTALL.md on how to check the kernel version
+  * Add Gtk4 info to INSTALL.md
+  * Fix typo in INSTALL.md driver disabled message
+
+  [ Jason A. Donenfeld ]
+  * Makefile: prefer distro cflags if specified
+
+  [ Geoffrey D. Bennett ]
+  * Add initial version of FAQ.md
+  * Add FUNDING.yml
+  * Add issue template
+  * Add Clarett info to INTERFACES.md
+  * Add TOC to INTERFACES.md
+  * Add link from USAGE.md to INTERFACES.md
+  * Allow the mixer window to be resized and give it scrollbars
+  * Update FAQ with more MSD info
+  * Fix long lines
+  * Add OpenSUSE package requirements
+  * Fix typo in INSTALL.md: comitting -> committing
+  * Move FUNDING.yml to the right spot
+
+  [ Jason A. Donenfeld ]
+  * gtkdial: use fabs() for double
+
+  [ Trent ]
+  * Add keyboard accelerators (aka shortcuts, hotkeys) for menu items.
+
+  [ Geoffrey D. Bennett ]
+  * Reformat keyboard accelerators to match existing code
+  * Remove keyboard accelerator mention from USAGE.md
+  * Split calc_valp() into calc_valp() and calc_valp_log()
+  * Fix dial to grab focus when clicked
+  * Fix dial to display focus indication
+
+  [ Nate Gallaher ]
+  * Clarify pad tooltip to specify attenuation amount
+
+  [ Geoffrey D. Bennett ]
+  * Remove gtk_widget_add_class()
+  * Fix is_elem_routing_snk() for Gen 4
+  * Remove lots of casts in create_routing_grid()
+  * Make the Level Meter check compatible with alsa-sim.c
+  * Remove repeated group by code in create_routing_grid()
+  * Add orientation parameter to routing_grid_label()
+  * Inline routing_grid_label() in create_routing_group_grid()
+  * Fix Presets button to be centered
+  * Add margin to socket widget
+  * Add support for routing the Gen 4 DSP I/O
+  * Allow for phantom power per-channel
+  * Remove hard-coded values from widget-gain.c and widget-volume.c
+  * Combine gain and volume widgets
+  * Center-align text in combo boxes
+  * Make boolean widget boolify value from alsa_get_elem_value()
+  * Explicitly order main window controls
+  * Add 4th Gen input controls
+  * Remove widgets from struct alsa_elem and add data to callbacks
+  * Add input select widget for 4th Gen 2i2 and 4i4
+  * Add 4th Gen 4i4 headphone volume knob control
+  * Add missing GtkDial scroll_begin() implementation
+  * Add bindings for pgup/pgdn/home/end to GtkDial
+  * Display -inf when volume/gain controls are at zero/off
+  * Don't round level meter values passed to GtkDial
+  * Fix widget-combo to check if the alsa elem is writable
+  * Simplify GtkDial calculations
+  * Bump copyright year
+  * Remove unused GtkDialFormatValueFunc from gtkdial.h
+  * Remove unused guint8 and gsize from gtkdial.c
+  * Remove irrelevant GDK_AVAILABLE_IN_ALL from gtkdial.h
+  * Reformat gtkdial.c to match rest of code
+  * Fix GtkDial:zero_db property comment
+  * Add scale to widget-gain.c struct gain
+  * Fix gtk_dial_new_with_range() to use calculated round_digits
+  * Allow for continuous dials
+  * Add page argument to gtk_dial_new_with_range()
+  * Fix typo range->dial in gtkdial.[ch]
+  * Remove inline from functions in gtkdial.c
+  * Move valp clamp and scale from calc_valp_log() to calc_valp()
+  * Add configurable taper to GtkDial
+  * Add support for piecewise linear interpolation taper to GtkDial
+  * Make GtkDial look better
+  * Make GtkDial dimmer if insensitive
+  * Remove bool_text from struct alsa_elem
+  * Move label into boolean controls and use button state to show status
+  * Remove "Analogue" from small Gen 3 device input labels
+  * Use CSS to set dark colour scheme
+  * Rewrite choose_line_colour() to work with a dark background
+  * Move 4th Gen Solo Air control up to be next to Inst control
+  * Add CSS classes to controls and add more colour
+  * Add widget-drop-down for Air
+  * Switch Clock Source to widget-drop-down
+  * Add 4th Gen Solo/2i2 Direct Monitor controls
+  * Add power status control for 4th Gen 4i4
+  * Update 3rd Gen Solo Direct Monitor control to match 4th Gen
+  * Remove now-unused widget-combo
+  * Add some red and grey
+  * Update about, etc. messages to include Gen 4/Clarett
+  * Add CSS for buttons that get dimmer when checked
+  * Use GtkTextView instead of GtkLabel in startup big_label()
+  * Add draw_slider() to remove some common code from dial_snapshot()
+  * Add GtkDial:can_control property
+  * Add 4th Gen Solo Mix switch
+  * Add off_db (deadband) to GtkDial for quiet signals
+  * Use GtkDial off_db (deadband) for level meters
+  * Remove struct dial_properties; cache values in struct _GtkDial
+  * Allow GtkDial to shrink more and reduce slider thickness
+  * Fix GtkDial to not recreate the cairo patterns on every draw
+  * Add colour to GtkDial level meters
+  * Prefix CSS styles so they don't apply to other windows
+  * Update the gain widget to support updating direct monitor mix controls
+  * Add routing group tooltips
+  * Fix GtkDial to not redraw the dial if the set value doesn't change
+  * Fix GtkDial to redraw on notify::sensitive signal
+  * Add red focus outline to GtkDial
+  * CSS fixes for buttons
+  * Retrieve and store the device serial number
+  * Don't export alsa_cards from alsa.c
+  * Add support for config reset
+  * Retrieve and store the device USB PID
+  * Move -lm into LDFLAGS
+  * Add support for firmware update
+
+  [ Antti-Pekka Meronen ]
+  * Include openssl-devel in Fedora installation instructions
+
+  [ Geoffrey D. Bennett ]
+  * Update OpenSUSE and Ubuntu package dependencies
+  * Remove fixed/mentioned-elsewhere issues from USAGE.md
+  * Don't set transient on modal window
+  * Make gain widget dB numbers smaller
+  * Add 4th Gen Solo, 2i2, and 4i4 demo files
+  * Don't show empty rows in levels window
+  * If there's an MSD control, add a reboot control too
+  * Reduce GtkDial circle brightness
+  * Make window-helper.c close the window when Esc is pressed
+  * Add missing static to populate_submenu() in menu.c
+  * Add gtk_widget_remove_css_classes_by_prefix() helper
+  * Add display of sample rate
+  * Display "+" before positive dB values in the gain widget
+  * Update gain widget to show no decimal places for scale > 0.5
+  * Add initial support for the Vocaster One and Two
+  * Store the best_firmware_version in struct alsa_card
+  * Prompt for firmware update if in MSD Mode and an update is available
+  * Add firmware info to the INSTALL.md Prerequisites section
+  * Update About dialog
+  * Update documentation for Scarlett 4th Gen and Vocaster
+
+  [ Robert Garrett ]
+  * Add build-depends on libssl-dev
+
+ -- Robert Garrett <robertgarrett404@gmail.com>  Mon, 09 Jun 2025 21:57:36 -0500
+
 alsa-scarlett-gui (0.3-1) UNRELEASED; urgency=low
 
   [ Geoffrey D. Bennett ]
