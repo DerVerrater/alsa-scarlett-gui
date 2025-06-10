@@ -1,6 +1,9 @@
-alsa-scarlett-gui (0.1-1) UNRELEASED; urgency=low
+alsa-scarlett-gui (0.1-1) UNRELEASED; urgency=medium
 
   * Initial revision, starting up a package manifest.
+  * Drop pbuilder settings from gbp.conf
+  * Set upstream version tag in gbp.conf
+  * Name upstream and debian branches properly
+  * Backport a link order fix from upstream
 
- -- Robert Garrett <robertgarrett404@gmail.com>  Wed, 29 May 2024 15:54:00 -0500
-
+ -- Robert Garrett <robertgarrett404@gmail.com>  Mon, 09 Jun 2025 19:37:00 -0500
