@@ -1,3 +1,70 @@
+alsa-scarlett-gui (0.3-1) UNRELEASED; urgency=low
+
+  [ Geoffrey D. Bennett ]
+  * Fix format-security warning in error.c
+
+  [ Sebastian Kaminski ]
+  * Fixed typo for 18i20 Gen 3 Mic/Line 3-8
+
+  [ Szabolcs Szőke ]
+  * Make routing sources and destinations the same width
+
+  [ Geoffrey D. Bennett ]
+  * Clarify comments and variable names in choose_line_colour()
+
+  [ Sebastian Kaminski ]
+  * Prevent the boolean widget from changing size when toggled
+
+  [ Geoffrey D. Bennett ]
+  * Add Ubuntu install and git download instructions
+  * Add Clarett support
+  * Fix typos in USAGE.md
+  * Fix building with Gtk 4.10
+  * Update README.md and USAGE.md with current driver information
+  * Add link to fundraiser for adding Scarlett Gen 4 support
+  * Fix input counting for Clarett+ series
+  * Update README and USAGE files with new Clarett info
+  * Split USAGE.md into INSTALL.md and USAGE.md
+  * Add Clarett Plus 2Pre and 4Pre demo files
+  * Update Clarett USB and Clarett+ status
+  * Apply correction curve to the dials
+  * Update README with Gen 4 and Vocaster info
+  * Specify full path to alsactl
+
+  [ David Cooper ]
+  * Add keyword to desktop file
+
+  [ Alejandro Domínguez ]
+  * Change icon file name
+  * Do not use deprecated or non-standard keys in desktop file
+  * Enable Flatpak packaging support
+
+  [ Guillaume ]
+  * Fix Error: icon alsa-scarlett-gui not found below...
+  * Remove commented rename-icon property
+  * Using github.com/flatpak/flatpak-github-actions
+
+  [ Geoffrey D. Bennett ]
+  * Fix iface-none.png image description
+  * Move flatpak instructions to INSTALL.md
+  * Update flatpak to gnome 45
+  * Add org.gnome.Platform and flathub to flatpak instructions
+  * Update INSTALL and README with Linux 6.7 info
+
+  [ sporksnail ]
+  * window-startup.c: fix typo
+
+  [ Geoffrey D. Bennett ]
+  * Add meter/level display
+
+  [ Guillaume ]
+  * Github action to build debian package on release
+
+  [ Robert Garrett ]
+  * Merge upstream version 0.3 & release package
+
+ -- Robert Garrett <robertgarrett404@gmail.com>  Mon, 09 Jun 2025 20:36:56 -0500
+
 alsa-scarlett-gui (0.2-1) UNRELEASED; urgency=low
 
   [ Geoffrey D. Bennett ]
