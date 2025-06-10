@@ -1,24 +1,36 @@
-// SPDX-FileCopyrightText: 2022 Geoffrey D. Bennett <g@b4.vu>
+// SPDX-FileCopyrightText: 2022-2024 Geoffrey D. Bennett <g@b4.vu>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include <sys/inotify.h>
 
 #include "alsa.h"
+#include "scarlett2-firmware.h"
 #include "stringhelper.h"
 #include "window-iface.h"
+
+#define MAX_TLV_RANGE_SIZE 256
 
 // names for the port categories
 const char *port_category_names[PC_COUNT] = {
   "Hardware Outputs",
   "Mixer Inputs",
+  "DSP Inputs",
   "PCM Inputs"
 };
 
 // global array of cards
-GArray *alsa_cards;
+static GArray *alsa_cards;
 
 // static fd and wd for ALSA inotify
 static int inotify_fd, inotify_wd;
+
+struct reopen_callback {
+  ReOpenCallback *callback;
+  void           *data;
+};
+
+// hash table for cards being rebooted
+GHashTable *reopen_callbacks;
 
 // forward declaration
 static void alsa_elem_change(struct alsa_elem *elem);
@@ -94,20 +106,37 @@ int get_max_elem_by_name(GArray *elems, char *prefix, char *needle) {
   return max;
 }
 
-// return true if the element is an routing destination enum, e.g.:
+// return true if the element is an routing sink enum, e.g.:
 // PCM xx Capture Enum
 // Mixer Input xx Capture Enum
 // Analogue Output xx Playback Enum
 // S/PDIF Output xx Playback Enum
 // ADAT Output xx Playback Enum
-int is_elem_routing_dst(struct alsa_elem *elem) {
-  if (strstr(elem->name, "Capture Enum") &&
-      !strstr(elem->name, "Level"))
+int is_elem_routing_snk(struct alsa_elem *elem) {
+  if (strstr(elem->name, "Capture Enum") && (
+       strncmp(elem->name, "PCM ", 4) == 0 ||
+       strncmp(elem->name, "Mixer Input ", 12) == 0 ||
+       strncmp(elem->name, "DSP Input ", 10) == 0
+     ))
     return 1;
   if (strstr(elem->name, "Output") &&
       strstr(elem->name, "Playback Enum"))
     return 1;
   return 0;
+}
+
+// add a callback to the list of callbacks for this element
+void alsa_elem_add_callback(
+  struct alsa_elem *elem,
+  AlsaElemCallback *callback,
+  void             *data
+) {
+  struct alsa_elem_callback *cb = calloc(1, sizeof(struct alsa_elem_callback));
+
+  cb->callback = callback;
+  cb->data = data;
+
+  elem->callbacks = g_list_append(elem->callbacks, cb);
 }
 
 //
@@ -336,6 +365,54 @@ static void alsa_get_elem_list(struct alsa_card *card) {
     if (strstr(alsa_elem.name, "Channel Map"))
       continue;
 
+    // get TLV info if it's a volume control
+    if (alsa_elem.type == SND_CTL_ELEM_TYPE_INTEGER) {
+      snd_ctl_elem_info_t *elem_info;
+
+      snd_ctl_elem_info_alloca(&elem_info);
+      snd_ctl_elem_info_set_numid(elem_info, alsa_elem.numid);
+      snd_ctl_elem_info(card->handle, elem_info);
+
+      if (snd_ctl_elem_info_is_tlv_readable(elem_info)) {
+        snd_ctl_elem_id_t *elem_id;
+        unsigned int tlv[MAX_TLV_RANGE_SIZE];
+        unsigned int *dbrec;
+        int ret;
+        long min_dB, max_dB;
+
+        snd_ctl_elem_id_alloca(&elem_id);
+        snd_ctl_elem_id_set_numid(elem_id, alsa_elem.numid);
+
+        ret = snd_ctl_elem_tlv_read(
+          card->handle, elem_id, tlv, sizeof(tlv)
+        );
+        if (ret < 0) {
+          fprintf(stderr, "TLV read error %d\n", ret);
+          continue;
+        }
+
+        ret = snd_tlv_parse_dB_info(tlv, sizeof(tlv), &dbrec);
+        if (ret <= 0) {
+          fprintf(stderr, "TLV parse error %d\n", ret);
+          continue;
+        }
+
+        int min_val = snd_ctl_elem_info_get_min(elem_info);
+        int max_val = snd_ctl_elem_info_get_max(elem_info);
+
+        ret = snd_tlv_get_dB_range(tlv, min_val, max_val, &min_dB, &max_dB);
+        if (ret != 0) {
+          fprintf(stderr, "TLV range error %d\n", ret);
+          continue;
+        }
+
+        alsa_elem.min_val = min_val;
+        alsa_elem.max_val = max_val;
+        alsa_elem.min_dB = min_dB / 100;
+        alsa_elem.max_dB = max_dB / 100;
+      }
+    }
+
     if (card->elems->len <= alsa_elem.numid)
       g_array_set_size(card->elems, alsa_elem.numid + 1);
     g_array_index(card->elems, struct alsa_elem, alsa_elem.numid) = alsa_elem;
@@ -347,11 +424,17 @@ static void alsa_get_elem_list(struct alsa_card *card) {
 }
 
 static void alsa_elem_change(struct alsa_elem *elem) {
-  if (!elem->widget)
+  if (!elem || !elem->callbacks)
     return;
-  if (!elem->widget_callback)
-    return;
-  elem->widget_callback(elem);
+
+  for (GList *l = elem->callbacks; l; l = l->next) {
+    struct alsa_elem_callback *cb = (struct alsa_elem_callback *)l->data;
+
+    if (!cb || !cb->callback)
+      continue;
+
+    cb->callback(elem, cb->data);
+  }
 }
 
 static gboolean alsa_card_callback(
@@ -449,6 +532,7 @@ static void card_destroy_callback(void *data) {
 
   // TODO: there is more to free
   free(card->device);
+  free(card->serial);
   free(card->name);
   free(card);
 
@@ -481,7 +565,174 @@ static void alsa_subscribe(struct alsa_card *card) {
   snd_ctl_poll_descriptors(card->handle, &card->pfd, 1);
 }
 
-void alsa_scan_cards(void) {
+static void alsa_get_usbid(struct alsa_card *card) {
+  char path[256];
+  snprintf(path, 256, "/proc/asound/card%d/usbid", card->num);
+
+  FILE *f = fopen(path, "r");
+  if (!f) {
+    fprintf(stderr, "can't open %s: %s\n", path, strerror(errno));
+    return;
+  }
+
+  int vid, pid;
+  int result = fscanf(f, "%04x:%04x", &vid, &pid);
+  fclose(f);
+
+  if (result != 2) {
+    fprintf(stderr, "can't read %s\n", path);
+    return;
+  }
+
+  if (vid != 0x1235) {
+    fprintf(stderr, "VID %04x != expected 0x1235 for Focusrite\n", vid);
+    return;
+  }
+
+  card->pid = pid;
+}
+
+// get the bus and device numbers from /proc/asound/cardxx/usbbus
+// format is XXX/YYY
+static int alsa_get_usbbus(struct alsa_card *card, int *bus, int *dev) {
+  char path[256];
+  snprintf(path, 256, "/proc/asound/card%d/usbbus", card->num);
+  FILE *f = fopen(path, "r");
+  if (!f) {
+    fprintf(stderr, "can't open %s\n", path);
+    return 0;
+  }
+
+  int result = fscanf(f, "%d/%d", bus, dev);
+  fclose(f);
+
+  if (result != 2) {
+    fprintf(stderr, "can't read %s\n", path);
+    return 0;
+  }
+
+  return 1;
+}
+
+// read the devnum file in bus_path
+//   /sys/bus/usb/devices/usbBUS/BUS-PORT/devnum
+// and return the value within
+static int usb_get_devnum(const char *bus_path) {
+  char devnum_path[512];
+  snprintf(devnum_path, 512, "%s/devnum", bus_path);
+
+  FILE *f = fopen(devnum_path, "r");
+  if (!f) {
+    if (errno == ENOENT)
+      return -1;
+
+    fprintf(stderr, "can't open %s: %s\n", devnum_path, strerror(errno));
+    return -1;
+  }
+
+  int devnum;
+  int result = fscanf(f, "%d", &devnum);
+  int err = errno;
+  fclose(f);
+
+  if (result != 1) {
+    fprintf(stderr, "can't read %s: %s\n", devnum_path, strerror(err));
+    return -1;
+  }
+
+  return devnum;
+}
+
+// recursively search for the device with the given dev number
+// in the /sys/bus/usb/devices/usbX/Y-Z hierarchy
+// and return the path to the port
+static int usb_find_device_port(
+  const char *bus_path,
+  int         bus,
+  int         dev,
+  char       *port_path,
+  size_t      port_path_size
+) {
+  if (usb_get_devnum(bus_path) == dev) {
+    snprintf(port_path, port_path_size, "%s", bus_path);
+    return 1;
+  }
+
+  DIR *dir = opendir(bus_path);
+  if (!dir) {
+    fprintf(stderr, "can't open %s: %s\n", bus_path, strerror(errno));
+    return 0;
+  }
+
+  // looking for d_name beginning with the bus number followed by a "-"
+  char prefix[20];
+  snprintf(prefix, 20, "%d-", bus);
+
+  struct dirent *entry;
+  while ((entry = readdir(dir))) {
+    if (entry->d_type != DT_DIR)
+      continue;
+
+    if (strncmp(entry->d_name, prefix, strlen(prefix)) != 0)
+      continue;
+
+    char next_path[512];
+    snprintf(next_path, 512, "%s/%s", bus_path, entry->d_name);
+
+    if (usb_find_device_port(next_path, bus, dev, port_path, port_path_size)) {
+      closedir(dir);
+      return 1;
+    }
+  }
+
+  closedir(dir);
+  return 0;
+}
+
+static void alsa_get_serial_number(struct alsa_card *card) {
+
+  int result, bus, dev;
+  if (!alsa_get_usbbus(card, &bus, &dev))
+    return;
+
+  // recurse through /sys/bus/usb/devices/usbBUS/BUS-.../devnum
+  // to find the device with the matching dev number
+  char bus_path[80];
+  snprintf(bus_path, 80, "/sys/bus/usb/devices/usb%d", bus);
+
+  char port_path[512];
+
+  if (!usb_find_device_port(bus_path, bus, dev, port_path, sizeof(port_path))) {
+    fprintf(
+      stderr,
+      "can't find port name in %s for dev %d (%s)\n",
+      bus_path, dev, card->name
+    );
+    return;
+  }
+
+  // read the serial number
+  char serial_path[520];
+  snprintf(serial_path, 520, "%s/serial", port_path);
+  FILE *f = fopen(serial_path, "r");
+  if (!f) {
+    fprintf(stderr, "can't open %s\n", serial_path);
+    return;
+  }
+
+  char serial[40];
+  result = fscanf(f, "%39s", serial);
+  fclose(f);
+
+  if (result != 1) {
+    fprintf(stderr, "can't read %s\n", serial_path);
+    return;
+  }
+
+  card->serial = strdup(serial);
+}
+
+static void alsa_scan_cards(void) {
   snd_ctl_card_info_t *info;
   snd_ctl_t           *ctl;
   int                  card_num = -1;
@@ -506,7 +757,8 @@ void alsa_scan_cards(void) {
       goto next;
 
     if (strncmp(snd_ctl_card_info_get_name(info), "Scarlett", 8) != 0 &&
-        strncmp(snd_ctl_card_info_get_name(info), "Clarett", 7) != 0)
+        strncmp(snd_ctl_card_info_get_name(info), "Clarett", 7) != 0 &&
+        strncmp(snd_ctl_card_info_get_name(info), "Vocaster", 8) != 0)
       goto next;
 
     // is there already an entry for this card in alsa_cards?
@@ -525,6 +777,21 @@ void alsa_scan_cards(void) {
 
     alsa_get_elem_list(card);
     alsa_subscribe(card);
+    alsa_get_usbid(card);
+    alsa_get_serial_number(card);
+    card->best_firmware_version = scarlett2_get_best_firmware_version(card->pid);
+
+    if (card->serial) {
+
+      // call the callbacks for this card
+      struct reopen_callback *rc = g_hash_table_lookup(
+        reopen_callbacks, card->serial
+      );
+      if (rc)
+        rc->callback(rc->data);
+
+      g_hash_table_remove(reopen_callbacks, card->serial);
+    }
 
     create_card_window(card);
     alsa_add_card_callback(card);
@@ -571,7 +838,7 @@ static gboolean inotify_callback(
   return TRUE;
 }
 
-void alsa_inotify_init(void) {
+static void alsa_inotify_init(void) {
   GIOChannel *io_channel;
 
   inotify_fd = inotify_init();
@@ -582,4 +849,33 @@ void alsa_inotify_init(void) {
     G_IO_IN | G_IO_ERR | G_IO_HUP,
     inotify_callback, NULL, NULL
   );
+}
+
+void alsa_init(void) {
+  alsa_cards = g_array_new(FALSE, TRUE, sizeof(struct alsa_card *));
+  reopen_callbacks = g_hash_table_new_full(
+    g_str_hash, g_str_equal, g_free, g_free
+  );
+  alsa_inotify_init();
+  alsa_scan_cards();
+}
+
+void alsa_register_reopen_callback(
+  const char     *serial,
+  ReOpenCallback *callback,
+  void           *data
+) {
+  struct reopen_callback *rc = g_new0(struct reopen_callback, 1);
+  rc->callback = callback;
+  rc->data = data;
+
+  g_hash_table_insert(reopen_callbacks, g_strdup(serial), rc);
+}
+
+void alsa_unregister_reopen_callback(const char *serial) {
+  g_hash_table_remove(reopen_callbacks, serial);
+}
+
+int alsa_has_reopen_callbacks(void) {
+  return g_hash_table_size(reopen_callbacks);
 }

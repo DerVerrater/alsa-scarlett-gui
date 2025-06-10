@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022 Geoffrey D. Bennett <g@b4.vu>
+// SPDX-FileCopyrightText: 2022-2024 Geoffrey D. Bennett <g@b4.vu>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "alsa.h"
@@ -151,6 +151,42 @@ static void alsa_parse_comment_node(
         elem->type = SND_CTL_ELEM_TYPE_INTEGER;
     } else if (strcmp(key, "item") == 0) {
       alsa_parse_enum_items(node, elem);
+    } else if (strcmp(key, "range") == 0) {
+      if (type != SND_CONFIG_TYPE_STRING) {
+        printf("range type not string\n");
+        return;
+      }
+      const char *range;
+      err = snd_config_get_string(node, &range);
+      if (err < 0)
+        fatal_alsa_error("snd_config_get_string error", err);
+
+      // Parse the range string and update elem->min_val and elem->max_val
+      int min_val, max_val;
+      if (sscanf(range, "%d - %d", &min_val, &max_val) == 2) {
+        elem->min_val = min_val;
+        elem->max_val = max_val;
+      }
+    } else if (strcmp(key, "dbmin") == 0) {
+      if (type != SND_CONFIG_TYPE_INTEGER) {
+        printf("dbmin type not integer\n");
+        return;
+      }
+      long dbmin;
+      err = snd_config_get_integer(node, &dbmin);
+      if (err < 0)
+        fatal_alsa_error("snd_config_get_integer error", err);
+      elem->min_dB = dbmin / 100;
+    } else if (strcmp(key, "dbmax") == 0) {
+      if (type != SND_CONFIG_TYPE_INTEGER) {
+        printf("dbmax type not integer\n");
+        return;
+      }
+      long dbmax;
+      err = snd_config_get_integer(node, &dbmax);
+      if (err < 0)
+        fatal_alsa_error("snd_config_get_integer error", err);
+      elem->max_dB = dbmax / 100;
     }
   }
 }
@@ -249,12 +285,13 @@ static int alsa_config_to_new_elem(
     }
   }
 
-  // check iface value; only interested in MIXER and PCM
+  // check iface value; only interested in CARD, MIXER, and PCM
   if (!iface) {
     printf("missing iface node in control id %d\n", id);
     goto fail;
   }
-  if (strcmp(iface, "MIXER") != 0 &&
+  if (strcmp(iface, "CARD") != 0 &&
+      strcmp(iface, "MIXER") != 0 &&
       strcmp(iface, "PCM") != 0)
     goto fail;
 

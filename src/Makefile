@@ -1,14 +1,19 @@
-# SPDX-FileCopyrightText: 2022 Geoffrey D. Bennett <g@b4.vu>
+# SPDX-FileCopyrightText: 2022-2024 Geoffrey D. Bennett <g@b4.vu>
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 # Credit to Tom Tromey and Paul D. Smith:
 # http://make.mad-scientist.net/papers/advanced-auto-dependency-generation/
 
-VERSION := $(shell git describe --abbrev=4 --dirty --always --tags)
+VERSION := $(shell \
+  git describe --abbrev=4 --dirty --always --tags 2>/dev/null || \
+  echo $${APP_VERSION:-Unknown} \
+)
+
 DEPDIR := .deps
 DEPFLAGS = -MT $@ -MMD -MP -MF $(DEPDIR)/$*.d
 
-CFLAGS := -Wall -Werror -ggdb -fno-omit-frame-pointer -O2 -D_FORTIFY_SOURCE=2
+CFLAGS ?= -ggdb -fno-omit-frame-pointer -O2
+CFLAGS += -Wall -Werror -D_FORTIFY_SOURCE=2
 CFLAGS += -DVERSION=\"$(VERSION)\"
 CFLAGS += -Wno-error=deprecated-declarations
 
@@ -21,6 +26,7 @@ CFLAGS += $(shell $(PKG_CONFIG) --cflags alsa)
 LDFLAGS += $(shell $(PKG_CONFIG) --libs glib-2.0)
 LDFLAGS += $(shell $(PKG_CONFIG) --libs gtk4)
 LDFLAGS += $(shell $(PKG_CONFIG) --libs alsa)
+LDFLAGS += -lm -lcrypto
 
 COMPILE.c = $(CC) $(DEPFLAGS) $(CFLAGS) -c
 
@@ -60,7 +66,7 @@ $(DEPFILES):
 include $(wildcard $(DEPFILES))
 
 $(TARGET): $(OBJS)
-	cc -o $(TARGET) $(OBJS) ${LDFLAGS} -lm 
+	cc -o $(TARGET) $(OBJS) ${LDFLAGS}
 
 ifeq ($(PREFIX),)
   PREFIX := /usr/local

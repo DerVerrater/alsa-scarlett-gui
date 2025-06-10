@@ -1,10 +1,11 @@
-// SPDX-FileCopyrightText: 2022 Geoffrey D. Bennett <g@b4.vu>
+// SPDX-FileCopyrightText: 2022-2024 Geoffrey D. Bennett <g@b4.vu>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "alsa.h"
 #include "alsa-sim.h"
 #include "main.h"
 #include "menu.h"
+#include "scarlett2-firmware.h"
 #include "window-hardware.h"
 #include "window-iface.h"
 
@@ -32,12 +33,10 @@ static void load_css(void) {
 static void startup(GtkApplication *app, gpointer user_data) {
   gtk_application_set_menubar(app, G_MENU_MODEL(create_app_menu(app)));
 
-  alsa_inotify_init();
-  alsa_cards = g_array_new(FALSE, TRUE, sizeof(struct alsa_card *));
-
   load_css();
 
-  alsa_scan_cards();
+  scarlett2_enum_firmware();
+  alsa_init();
 
   create_no_card_window();
   create_hardware_window(app);
@@ -63,7 +62,9 @@ static void open_cb(
 }
 
 int main(int argc, char **argv) {
-  app = gtk_application_new("vu.b4.alsa-scarlett-gui", G_APPLICATION_HANDLES_OPEN);
+  app = gtk_application_new(
+    "vu.b4.alsa-scarlett-gui", G_APPLICATION_HANDLES_OPEN
+  );
   g_signal_connect(app, "startup", G_CALLBACK(startup), NULL);
   g_signal_connect(app, "activate", G_CALLBACK(activate), NULL);
   g_signal_connect(app, "open", G_CALLBACK(open_cb), NULL);

@@ -1,11 +1,17 @@
-// SPDX-FileCopyrightText: 2022 Geoffrey D. Bennett <g@b4.vu>
+// SPDX-FileCopyrightText: 2022-2024 Geoffrey D. Bennett <g@b4.vu>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "device-reset-config.h"
+#include "device-update-firmware.h"
 #include "gtkhelper.h"
+#include "scarlett2.h"
+#include "scarlett2-ioctls.h"
 #include "widget-boolean.h"
 #include "window-startup.h"
 
-static GtkWidget *small_label(char *text) {
+#define REQUIRED_HWDEP_VERSION_MAJOR 1
+
+static GtkWidget *small_label(const char *text) {
   GtkWidget *w = gtk_label_new(NULL);
 
   char *s = g_strdup_printf("<b>%s</b>", text);
@@ -17,15 +23,17 @@ static GtkWidget *small_label(char *text) {
   return w;
 }
 
-static GtkWidget *big_label(char *text) {
-  GtkWidget *w = gtk_label_new(text);
+static GtkWidget *big_label(const char *text) {
+  GtkWidget *view = gtk_text_view_new ();
+  GtkTextBuffer *buffer = gtk_text_view_get_buffer (GTK_TEXT_VIEW (view));
 
-  gtk_widget_set_halign(w, GTK_ALIGN_START);
+  gtk_text_view_set_wrap_mode (GTK_TEXT_VIEW (view), GTK_WRAP_WORD);
+  gtk_widget_set_size_request (view, 600, -1);
+  gtk_widget_set_sensitive (view, FALSE);
 
-  gtk_label_set_wrap(GTK_LABEL(w), true);
-  gtk_label_set_max_width_chars(GTK_LABEL(w), 60);
+  gtk_text_buffer_set_text (buffer, text, -1);
 
-  return w;
+  return view;
 }
 
 static void add_sep(GtkWidget *grid, int *grid_y) {
@@ -33,7 +41,10 @@ static void add_sep(GtkWidget *grid, int *grid_y) {
     return;
 
   GtkWidget *sep = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
-  gtk_widget_set_margin(sep, 20);
+  gtk_widget_set_margin_top(sep, 10);
+  gtk_widget_set_margin_bottom(sep, 10);
+  gtk_widget_set_margin_start(sep, 20);
+  gtk_widget_set_margin_end(sep, 20);
   gtk_grid_attach(GTK_GRID(grid), sep, 0, (*grid_y)++, 3, 1);
 }
 
@@ -55,6 +66,7 @@ static void add_standalone_control(
   gtk_grid_attach(GTK_GRID(grid), w, 0, *grid_y, 1, 1);
 
   w = make_boolean_alsa_elem(standalone, "Disabled", "Enabled");
+  gtk_widget_set_valign(w, GTK_ALIGN_START);
   gtk_grid_attach(GTK_GRID(grid), w, 0, *grid_y + 1, 1, 1);
 
   w = big_label(
@@ -90,6 +102,7 @@ static void add_phantom_persistence_control(
   gtk_grid_attach(GTK_GRID(grid), w, 0, *grid_y, 1, 1);
 
   w = make_boolean_alsa_elem(phantom, "Disabled", "Enabled");
+  gtk_widget_set_valign(w, GTK_ALIGN_START);
   gtk_grid_attach(GTK_GRID(grid), w, 0, *grid_y + 1, 1, 1);
 
   w = big_label(
@@ -104,7 +117,7 @@ static void add_phantom_persistence_control(
   *grid_y += 2;
 }
 
-static void add_msd_control(
+static int add_msd_control(
   GArray    *elems,
   GtkWidget *grid,
   int       *grid_y
@@ -114,7 +127,7 @@ static void add_msd_control(
   );
 
   if (!msd)
-    return;
+    return 0;
 
   add_sep(grid, grid_y);
 
@@ -124,6 +137,7 @@ static void add_msd_control(
   gtk_grid_attach(GTK_GRID(grid), w, 0, *grid_y, 1, 1);
 
   w = make_boolean_alsa_elem(msd, "Disabled", "Enabled");
+  gtk_widget_set_valign(w, GTK_ALIGN_START);
   gtk_grid_attach(GTK_GRID(grid), w, 0, *grid_y + 1, 1, 1);
 
   w = big_label(
@@ -138,6 +152,148 @@ static void add_msd_control(
   gtk_grid_attach(GTK_GRID(grid), w, 1, *grid_y, 1, 2);
 
   *grid_y += 2;
+
+  return 1;
+}
+
+static void add_reset_action(
+  struct alsa_card *card,
+  GtkWidget        *grid,
+  int              *grid_y,
+  const char       *label,
+  const char       *button_label,
+  const char       *description,
+  GCallback        callback
+) {
+  add_sep(grid, grid_y);
+
+  GtkWidget *w;
+
+  w = small_label(label);
+  gtk_grid_attach(GTK_GRID(grid), w, 0, *grid_y, 1, 1);
+
+  w = gtk_button_new_with_label(button_label);
+  gtk_grid_attach(GTK_GRID(grid), w, 0, *grid_y + 1, 1, 1);
+  g_signal_connect(w, "clicked", callback, card);
+
+  w = big_label(description);
+  gtk_grid_attach(GTK_GRID(grid), w, 1, *grid_y, 1, 2);
+
+  *grid_y += 2;
+}
+
+static void reboot_device(GtkWidget *button, struct alsa_card *card) {
+  snd_hwdep_t *hwdep;
+
+  int err = scarlett2_open_card(card->device, &hwdep);
+  if (err < 0) {
+    fprintf(stderr, "unable to open hwdep interface: %s\n", snd_strerror(err));
+    return;
+  }
+
+  err = scarlett2_reboot(hwdep);
+  if (err < 0) {
+    fprintf(stderr, "unable to reboot device: %s\n", snd_strerror(err));
+    return;
+  }
+
+  scarlett2_close(hwdep);
+}
+
+static void add_reset_actions(
+  struct alsa_card *card,
+  GtkWidget        *grid,
+  int              *grid_y,
+  int               has_msd
+) {
+  // simulated cards don't support hwdep
+  if (!card->device)
+    return;
+
+  snd_hwdep_t *hwdep;
+
+  int err = scarlett2_open_card(card->device, &hwdep);
+  if (err < 0) {
+    fprintf(stderr, "unable to open hwdep interface: %s\n", snd_strerror(err));
+    return;
+  }
+
+  int ver = scarlett2_get_protocol_version(hwdep);
+  if (ver < 0) {
+    fprintf(stderr, "unable to get protocol version: %s\n", snd_strerror(ver));
+    return;
+  }
+
+  if (SCARLETT2_HWDEP_VERSION_MAJOR(ver) != REQUIRED_HWDEP_VERSION_MAJOR) {
+    fprintf(
+      stderr,
+      "Unsupported hwdep protocol version %d.%d.%d on card %s\n",
+      SCARLETT2_HWDEP_VERSION_MAJOR(ver),
+      SCARLETT2_HWDEP_VERSION_MINOR(ver),
+      SCARLETT2_HWDEP_VERSION_SUBMINOR(ver),
+      card->device
+    );
+    return;
+  }
+
+  scarlett2_close(hwdep);
+
+  // Add reboot action if there is an MSD control
+  if (has_msd) {
+    add_reset_action(
+      card,
+      grid,
+      grid_y,
+      "Reboot Device",
+      "Reboot",
+      "After enabling or disabling MSD mode, the interface must be "
+      "rebooted for the change to take effect.",
+      G_CALLBACK(reboot_device)
+    );
+  }
+
+  // Reset Configuration
+  add_reset_action(
+    card,
+    grid,
+    grid_y,
+    "Reset Configuration",
+    "Reset",
+    "Resetting the configuration will reset the interface to its "
+    "factory default settings. The firmware will be left unchanged.",
+    G_CALLBACK(create_reset_config_window)
+  );
+
+  // Update Firmware
+  struct alsa_elem *firmware_elem =
+    get_elem_by_name(card->elems, "Firmware Version");
+
+  if (!firmware_elem)
+    return;
+
+  int firmware_version = alsa_get_elem_value(firmware_elem);
+
+  if (firmware_version >= card->best_firmware_version)
+    return;
+
+  char *s = g_strdup_printf(
+    "Updating the firmware will reset the interface to its "
+    "factory default settings and update the firmware from version "
+    "%d to %d.",
+    firmware_version,
+    card->best_firmware_version
+  );
+  add_reset_action(
+    card,
+    grid,
+    grid_y,
+    "Update Firmware",
+    "Update",
+    s,
+    G_CALLBACK(create_update_firmware_window)
+  );
+
+  g_free(s);
 }
 
 static void add_no_startup_controls_msg(GtkWidget *grid) {
@@ -151,18 +307,26 @@ static void add_no_startup_controls_msg(GtkWidget *grid) {
 GtkWidget *create_startup_controls(struct alsa_card *card) {
   GArray *elems = card->elems;
 
+  GtkWidget *top = gtk_frame_new(NULL);
+  gtk_widget_add_css_class(top, "window-frame");
+
   int grid_y = 0;
 
   GtkWidget *grid = gtk_grid_new();
-  gtk_widget_set_margin(grid, 20);
+  gtk_widget_add_css_class(grid, "window-content");
+  gtk_widget_add_css_class(grid, "top-level-content");
+  gtk_widget_add_css_class(grid, "window-startup");
   gtk_grid_set_column_spacing(GTK_GRID(grid), 20);
+  gtk_grid_set_row_spacing(GTK_GRID(grid), 10);
+  gtk_frame_set_child(GTK_FRAME(top), grid);
 
   add_standalone_control(elems, grid, &grid_y);
   add_phantom_persistence_control(elems, grid, &grid_y);
-  add_msd_control(elems, grid, &grid_y);
+  int has_msd = add_msd_control(elems, grid, &grid_y);
+  add_reset_actions(card, grid, &grid_y, has_msd);
 
   if (!grid_y)
     add_no_startup_controls_msg(grid);
 
-  return grid;
+  return top;
 }
