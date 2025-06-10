@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Geoffrey D. Bennett <g@b4.vu>
+// SPDX-FileCopyrightText: 2024-2025 Geoffrey D. Bennett <g@b4.vu>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "gtkhelper.h"
@@ -46,7 +46,7 @@ static int get_sample_rate(struct sample_rate *data) {
 
   FILE *file = fopen(data->path, "r");
   if (!file) {
-    perror("fopen");
+    perror("fopen /proc/asound/cardN/stream0");
     return 0;
   }
 
@@ -103,6 +103,7 @@ GtkWidget *make_sample_rate_widget(
   data->button = gtk_toggle_button_new();
   data->sample_rate = -1;
 
+  gtk_widget_set_sensitive(data->button, FALSE);
   gtk_widget_add_css_class(data->button, "fixed");
   gtk_widget_add_css_class(data->button, "sample-rate");
 

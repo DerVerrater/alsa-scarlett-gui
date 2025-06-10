@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022-2024 Geoffrey D. Bennett <g@b4.vu>
+// SPDX-FileCopyrightText: 2022-2025 Geoffrey D. Bennett <g@b4.vu>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include <gtk/gtk.h>
@@ -50,6 +50,10 @@ void create_card_window(struct alsa_card *card) {
     card->window_main_contents = create_iface_update_main(card);
     has_startup = false;
     has_mixer = false;
+
+  // Scarlett Gen 1
+  } else if (get_elem_by_prefix(card->elems, "Matrix")) {
+    card->window_main_contents = create_iface_mixer_main(card);
 
   // Scarlett Gen 2, Gen 3 4i4+, Gen 4, Clarett, or Vocaster
   } else if (get_elem_by_prefix(card->elems, "Mixer")) {
@@ -113,10 +117,6 @@ void destroy_card_window(struct alsa_card *card) {
   if (card->window_modal) {
     gtk_window_destroy(GTK_WINDOW(card->window_modal));
   }
-
-  // disable the level meter timer source
-  if (card->meter_gsource_timer)
-    g_source_remove(card->meter_gsource_timer);
 
   // if last window, display the "no card found" blank window
   window_count--;
