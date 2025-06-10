@@ -26,18 +26,22 @@ ALSA driver implementation that you should be aware of:
 2. **State Update Issues**: The driver only updates the hardware state
    when it thinks a setting needs to be changed. If the driver
    incorrectly believes a control is already in the desired state, it
-   won't actually update the control.
+   won’t actually update the control.
 
 3. **Level Meters**: The driver does not support reading the level
    meters from the hardware.
 
-4. **Startup Controls**: The driver has no startup controls.
+4. **Startup Configuration**: The driver is not able to save the
+   current configuration to the non-volatile memory of the device, so
+   you’ll need to reapply the desired configuration each time you
+   restart it (or write your preferred configuration using MixControl
+   on Windows or Mac).
 
 ### Recommended Workaround
 
 To ensure your settings are properly applied:
 
-1. Apply a "zero" configuration that sets all controls to values that
+1. Apply a “zero” configuration that sets all controls to values that
    are *not* what you desire.
 2. Then apply your desired configuration
 
@@ -70,12 +74,12 @@ Global controls relate to the operation of the interface as a whole.
 #### Clock Source
 
 Clock Source selects where the interface receives its digital clock
-from. If you aren't using S/PDIF or ADAT inputs, set this to Internal.
+from. If you aren’t using S/PDIF or ADAT inputs, set this to Internal.
 
 #### Sync Status
 
 Sync Status indicates if the interface is locked to a valid digital
-clock. If you aren't using S/PDIF or ADAT inputs and the status is
+clock. If you aren’t using S/PDIF or ADAT inputs and the status is
 Unlocked, change the Clock Source to Internal.
 
 ### Analogue Input Controls
@@ -136,16 +140,16 @@ from more than one source, use the mixer inputs and outputs:
 The Presets menu can be used to clear all connections, or to set up
 common configurations:
 
-- The "Direct" preset sets up the usual configuration using the
+- The “Direct” preset sets up the usual configuration using the
   interface as a regular audio interface by connecting:
 
   - all Hardware Inputs to PCM Inputs
   - all PCM Outputs to Hardware Outputs
 
-- The "Preamp" preset connects all Hardware Inputs to Hardware
+- The “Preamp” preset connects all Hardware Inputs to Hardware
   Outputs.
 
-- The "Stereo Out" preset connects PCM 1 and 2 Outputs to pairs of
+- The “Stereo Out” preset connects PCM 1 and 2 Outputs to pairs of
   Hardware Outputs.
 
 ## Mixer

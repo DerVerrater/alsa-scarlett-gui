@@ -5,9 +5,14 @@
 #include <alsa/sound/uapi/tlv.h>
 
 #include "alsa.h"
+#include "scarlett2.h"
 #include "scarlett2-firmware.h"
+#include "scarlett2-ioctls.h"
 #include "stringhelper.h"
 #include "window-iface.h"
+
+#define MAJOR_HWDEP_VERSION_SCARLETT2 1
+#define MAJOR_HWDEP_VERSION_FCP 2
 
 #define MAX_TLV_RANGE_SIZE 1024
 
@@ -215,8 +220,8 @@ long alsa_get_elem_value(struct alsa_elem *elem) {
 
 // for elements with multiple int values, return all the values
 // the int array returned needs to be freed by the caller
-int *alsa_get_elem_int_values(struct alsa_elem *elem) {
-  int *values = calloc(elem->count, sizeof(int));
+long *alsa_get_elem_int_values(struct alsa_elem *elem) {
+  long *values = calloc(elem->count, sizeof(long));
 
   if (elem->card->num == SIMULATED_CARD_NUM) {
     for (int i = 0; i < elem->count; i++)
@@ -787,6 +792,77 @@ static void card_destroy_callback(void *data) {
   }
 }
 
+// Complete card initialisation after the driver is ready
+static void complete_card_init(struct alsa_card *card) {
+
+  // Get full element list and create main window
+  alsa_get_elem_list(card);
+  alsa_set_lr_nums(card);
+  alsa_get_routing_controls(card);
+  card->best_firmware_version = scarlett2_get_best_firmware_version(card->pid);
+
+  if (card->serial) {
+    // Call the reopen callbacks for this card
+    struct reopen_callback *rc = g_hash_table_lookup(
+      reopen_callbacks, card->serial
+    );
+    if (rc)
+      rc->callback(rc->data);
+
+    g_hash_table_remove(reopen_callbacks, card->serial);
+  }
+
+  create_card_window(card);
+}
+
+// Check if the Firmware Version control has a TLV and is locked,
+// indicating the driver is ready
+static int check_driver_ready(snd_ctl_elem_info_t *info) {
+  return snd_ctl_elem_info_is_tlv_readable(info) &&
+         snd_ctl_elem_info_is_locked(info);
+}
+
+// Check if the FCP driver is initialised
+static void check_driver_init(
+  struct alsa_card *card, int numid, unsigned int mask
+) {
+
+  // Ignore controls going away
+  if (mask == SND_CTL_EVENT_MASK_REMOVE)
+    return;
+
+  // Get the control's info
+  snd_ctl_elem_id_t *id;
+  snd_ctl_elem_info_t *info;
+
+  snd_ctl_elem_id_alloca(&id);
+  snd_ctl_elem_info_alloca(&info);
+
+  snd_ctl_elem_id_set_numid(id, numid);
+  snd_ctl_elem_info_set_id(info, id);
+
+  if (snd_ctl_elem_info(card->handle, info) < 0) {
+    fprintf(stderr, "error getting elem info %d\n", numid);
+    return;
+  }
+
+  const char *name = snd_ctl_elem_info_get_name(info);
+
+  // Check if it's the Firmware Version control being updated
+  if (strcmp(name, "Firmware Version"))
+    return;
+
+  // Check if the driver is ready
+  if (!check_driver_ready(info))
+    return;
+
+  // The driver is initialised; update the card's driver type
+  card->driver_type = DRIVER_TYPE_SOCKET;
+
+  // Complete the card initialisation
+  complete_card_init(card);
+}
+
 static gboolean alsa_card_callback(
   GIOChannel    *source,
   GIOCondition   condition,
@@ -817,6 +893,13 @@ static gboolean alsa_card_callback(
 
   int numid = snd_ctl_event_elem_get_numid(event);
   unsigned int mask = snd_ctl_event_elem_get_mask(event);
+
+  // Check if we're waiting for FCP driver to initialise and check if
+  // it's now ready
+  if (card->driver_type == DRIVER_TYPE_SOCKET_UNINIT) {
+    check_driver_init(card, numid, mask);
+    return 1;
+  }
 
   if (mask == SND_CTL_EVENT_MASK_REMOVE) {
     card_destroy_callback(card);
@@ -1067,6 +1150,94 @@ static void alsa_get_serial_number(struct alsa_card *card) {
   card->serial = strdup(serial);
 }
 
+// return true if the Firmware Version control exists and is writable
+// and locked (i.e. the FCP server is running)
+static int check_firmware_version_locked(struct alsa_card *card) {
+  snd_ctl_elem_id_t   *id;
+  snd_ctl_elem_info_t *info;
+
+  snd_ctl_elem_id_alloca(&id);
+  snd_ctl_elem_info_alloca(&info);
+
+  // look for the Firmware Version control
+  snd_ctl_elem_id_set_interface(id, SND_CTL_ELEM_IFACE_CARD);
+  snd_ctl_elem_id_set_name(id, "Firmware Version");
+  snd_ctl_elem_info_set_id(info, id);
+
+  // no Firmware Version control found
+  int err = snd_ctl_elem_info(card->handle, info);
+  if (err < 0)
+    return 0;
+
+  return check_driver_ready(info);
+}
+
+// return the driver type for this card
+// DRIVER_TYPE_NONE: no driver
+// DRIVER_TYPE_HWDEP: Scarlett2 driver
+// DRIVER_TYPE_SOCKET: FCP driver
+// DRIVER_TYPE_SOCKET_UNINIT: FCP driver, but not initialised
+static int get_driver_type(struct alsa_card *card) {
+  snd_hwdep_t *hwdep;
+
+  int err = scarlett2_open_card(card->device, &hwdep);
+
+  // no hwdep for this card - driver type none
+  if (err == -ENOENT)
+    return DRIVER_TYPE_NONE;
+
+  // if we get EPERM, it's FCP but no server running
+  if (err == -EPERM)
+    return DRIVER_TYPE_SOCKET_UNINIT;
+
+  // if we get EBUSY, it's FCP
+  if (err == -EBUSY)
+    // fcp-server locks the Firmware Version control when it has
+    // finished starting up
+    return check_firmware_version_locked(card) ?
+      DRIVER_TYPE_SOCKET : DRIVER_TYPE_SOCKET_UNINIT;
+
+  // failed to open hwdep
+  if (err < 0)
+    return DRIVER_TYPE_NONE;
+
+  // we can open hwdep, so now check the protocol version
+  int ver = scarlett2_get_protocol_version(hwdep);
+  scarlett2_close(hwdep);
+
+  // failed to get protocol version
+  if (ver < 0)
+    return DRIVER_TYPE_NONE;
+
+  // hwdep protocol version 1.x.x is Scarlett2 driver
+  if (SCARLETT2_HWDEP_VERSION_MAJOR(ver) == MAJOR_HWDEP_VERSION_SCARLETT2)
+    return DRIVER_TYPE_HWDEP;
+
+  // hwdep protocol version 2.x.x is FCP driver (but not initialised,
+  // because we were able to open the hwdep)
+  if (SCARLETT2_HWDEP_VERSION_MAJOR(ver) == MAJOR_HWDEP_VERSION_FCP)
+    return DRIVER_TYPE_SOCKET_UNINIT;
+
+  return DRIVER_TYPE_NONE;
+}
+
+static void card_init(struct alsa_card *card) {
+  alsa_get_usbid(card);
+  alsa_get_serial_number(card);
+  alsa_subscribe(card);
+  alsa_add_card_callback(card);
+
+  card->driver_type = get_driver_type(card);
+
+  // Driver not ready? Create the iface-waiting window
+  if (card->driver_type == DRIVER_TYPE_SOCKET_UNINIT) {
+    create_card_window(card);
+    return;
+  }
+
+  complete_card_init(card);
+}
+
 static void alsa_scan_cards(void) {
   snd_ctl_card_info_t *info;
   snd_ctl_t           *ctl;
@@ -1110,30 +1281,7 @@ static void alsa_scan_cards(void) {
     card->name = strdup(snd_ctl_card_info_get_name(info));
     card->handle = ctl;
 
-    alsa_get_elem_list(card);
-    alsa_set_lr_nums(card);
-    alsa_get_routing_controls(card);
-
-    alsa_subscribe(card);
-    alsa_get_usbid(card);
-    alsa_get_serial_number(card);
-    card->best_firmware_version =
-      scarlett2_get_best_firmware_version(card->pid);
-
-    if (card->serial) {
-
-      // call the reopen callbacks for this card
-      struct reopen_callback *rc = g_hash_table_lookup(
-        reopen_callbacks, card->serial
-      );
-      if (rc)
-        rc->callback(rc->data);
-
-      g_hash_table_remove(reopen_callbacks, card->serial);
-    }
-
-    create_card_window(card);
-    alsa_add_card_callback(card);
+    card_init(card);
 
     continue;
 

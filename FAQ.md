@@ -24,7 +24,7 @@ deactivate MSD mode by holding down the 48V button while powering it
 on).
 
 However, to access the mixer, routing, and hardware-specific features,
-you'll need the appropriate driver for your interface model.
+you’ll need the appropriate driver for your interface model.
 
 ## MSD Mode?
 
@@ -34,7 +34,7 @@ you'll need the appropriate driver for your interface model.
 If MSD Mode is enabled, you need to disable it and restart your
 interface to get access to its full functionality.
 
-When you plug the interface in, there'll be a tiny read-only virtual
+When you plug the interface in, there’ll be a tiny read-only virtual
 disk that has a link to the Focusrite product registration page; until
 you turn off MSD Mode not all features of the interface will be
 available.
@@ -46,7 +46,7 @@ powering on the interface, or by clicking the button in
 If you do the recommended/required (depending on the model) firmware
 update, MSD Mode will automatically be turned off.
 
-## What is the purpose of these drivers if they're not needed for basic audio?
+## What is the purpose of these drivers if they’re not needed for basic audio?
 
 These drivers are for users who want more control over their
 interface. They allow for detailed manipulation of:
@@ -72,13 +72,13 @@ The ALSA Scarlett Control Panel supports:
 - **Vocaster**: One, Two
 
 Note: The Scarlett 1st and 2nd Gen small interfaces (Solo, 2i2, 2i4)
-don't have any software controls. All the controls are available from
-the front panel, so they don't require the specialised drivers or this
+don’t have any software controls. All the controls are available from
+the front panel, so they don’t require the specialised drivers or this
 GUI.
 
 ## Where are the options to set the sample rate and buffer size?
 
-The ALSA Scarlett Control Panel doesn't handle audio input/output
+The ALSA Scarlett Control Panel doesn’t handle audio input/output
 settings like sample rate and buffer size. These settings are managed
 by the application using the soundcard, typically a sound server such
 as PulseAudio, JACK, or PipeWire.
@@ -90,7 +90,57 @@ displays the current rate being used by applications. If it shows
 Note that not all features are available at higher sample rates; refer
 to the user manual of your interface for more information.
 
+## Why do my settings keep resetting?
+
+The settings in the ALSA Scarlett Control Panel are automatically
+saved in the interface itself (all series except 1st Gen), so they
+should persist across reboots, power cycles, USB disconnect/reconnect,
+and even across different computers. This includes all routing,
+mixing, and other control panel settings.
+
+If you find that your settings are reverting whenever you plug your
+interface in or power it back on, the most likely cause is the
+`alsa-state` and `alsa-restore` systemd services. These services save
+the state of ALSA controls on system shutdown to
+`/var/lib/alsa/asound.state` and then restore it each time the device
+is plugged in, potentially overwriting your interface’s stored
+settings.
+
+It can be rather annoying, wondering why your device is unusable or
+needs to be reconfigured every time you plug it in or turn it on.
+
+To fix this issue, disable these services:
+
+```sh
+sudo systemctl mask alsa-state
+sudo systemctl mask alsa-restore
+```
+
+You can verify if this is the cause of your issues by:
+
+1. Change some setting that is indicated on the device (the “Inst”
+   setting is a good).
+2. Disconnect USB and notice the state of the setting on the device
+   has not changed.
+3. Power cycle the device and notice the state of the setting on the
+   device has not changed.
+4. Reconnect USB and notice the state of the setting on the device has
+   changed.
+
+If the setting on the device changes at step 4, then the `alsa-state`
+and `alsa-restore` services are the likely cause of your issues.
+
 ## Help?!
+
+Have you read the User Guide for your interface? It’s available
+online: https://downloads.focusrite.com/focusrite and contains a lot
+of helpful/useful/important information about your device.
+
+You can skip the “Easy Start” and “Setting up your DAW” sections, but
+the rest is well worth reading. Even the information about Focusrite
+Control is useful, although not directly applicable, because it will
+help you understand more about the possibilities of what you can do
+with your device.
 
 For help with the Scarlett2 and FCP kernel drivers:
 https://github.com/geoffreybennett/linux-fcp/issues
