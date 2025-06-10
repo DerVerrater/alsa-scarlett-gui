@@ -71,6 +71,19 @@ To run:
 ./alsa-scarlett-gui
 ```
 
+You can install it into `/usr/local` (binary, desktop file, and icon)
+with:
+
+```
+sudo make install
+```
+
+And uninstall with:
+
+```
+sudo make uninstall
+```
+
 ## No interface connected
 
 If no interface is detected (usually because there isn’t one
@@ -442,3 +455,6 @@ menu option File → Interface Simulation to load.
 
 - There is no facility to give channels custom names (needs kernel
   support to save this information in the interface).
+
+- No keyboard accelerators (e.g. Ctrl-Q to quit) have been
+  implemented.

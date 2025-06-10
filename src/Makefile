@@ -1,10 +1,15 @@
+# SPDX-FileCopyrightText: 2022 Geoffrey D. Bennett <g@b4.vu>
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 # Credit to Tom Tromey and Paul D. Smith:
 # http://make.mad-scientist.net/papers/advanced-auto-dependency-generation/
 
+VERSION := $(shell git describe --abbrev=4 --dirty --always --tags)
 DEPDIR := .deps
 DEPFLAGS = -MT $@ -MMD -MP -MF $(DEPDIR)/$*.d
 
 CFLAGS := -Wall -Werror -ggdb -fno-omit-frame-pointer -O2 -D_FORTIFY_SOURCE=2
+CFLAGS += -DVERSION=\"$(VERSION)\"
 
 PKG_CONFIG=pkg-config
 
@@ -32,13 +37,14 @@ XML_OBJ := $(patsubst %.xml,%.c,$(XML_SRC))
 SRCS := $(sort $(wildcard *.c) $(XML_OBJ))
 OBJS := $(patsubst %.c,%.o,$(SRCS))
 TARGET := alsa-scarlett-gui
+DESKTOP_FILE := vu.b4.$(TARGET).desktop
 
 GLIB_COMPILE_RESOURCES := $(shell $(PKG_CONFIG) --variable=glib_compile_resources gio-2.0)
 
-all: $(TARGET)
+all: $(TARGET) $(DESKTOP_FILE)
 
 clean:
-	rm -f $(TARGET) $(OBJS) $(XML_OBJ)
+	rm -f $(TARGET) $(DESKTOP_FILE) $(OBJS) $(XML_OBJ)
 
 depclean:
 	rm -rf $(DEPDIR)
@@ -51,4 +57,37 @@ $(DEPFILES):
 include $(wildcard $(DEPFILES))
 
 $(TARGET): $(OBJS)
-	cc ${LDFLAGS} -lm -o $(TARGET) $(OBJS)
+	cc -o $(TARGET) $(OBJS) ${LDFLAGS} -lm 
+
+ifeq ($(PREFIX),)
+  PREFIX := /usr/local
+endif
+
+BINDIR := $(DESTDIR)$(PREFIX)/bin
+ICONTOP := $(DESTDIR)$(PREFIX)/share/icons/hicolor
+ICONDIR := $(ICONTOP)/256x256/apps
+DESKTOPDIR := $(DESTDIR)$(PREFIX)/share/applications
+
+$(DESKTOP_FILE): $(DESKTOP_FILE).template
+	sed 's_PREFIX_$(PREFIX)_' < $< > $@
+
+install: all
+	install -d $(BINDIR)
+	install -m 755 $(TARGET) $(BINDIR)
+	install -d $(ICONDIR)
+	install -m 644 img/$(TARGET).png $(ICONDIR)
+	install -d $(DESKTOPDIR)
+	install -m 644 $(DESKTOP_FILE) $(DESKTOPDIR)
+
+uninstall:
+	rm -f $(BINDIR)/$(TARGET)
+	rm -f $(ICONDIR)/$(TARGET).png
+	rm -f $(DESKTOPDIR)/$(DESKTOP_FILE)
+
+help:
+	@echo "alsa-scarlett-gui"
+	@echo
+	@echo "This Makefile knows about:"
+	@echo "  make"
+	@echo "  make install"
+	@echo "  make uninstall"

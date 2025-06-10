@@ -1,5 +1,7 @@
+*.tar.gz
 *.o
 .deps
 .gdb_history
 alsa-scarlett-gui
 alsa-scarlett-gui-resources.c
+vu.b4.alsa-scarlett-gui.desktop
