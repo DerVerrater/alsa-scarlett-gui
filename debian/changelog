@@ -1,3 +1,94 @@
+alsa-scarlett-gui (0.5.0-1) unstable; urgency=medium
+
+  [ Geoffrey D. Bennett ]
+  * Move 4th Gen Solo 48V switch above the Air switch
+
+  [ Giorgio Reale ]
+  * Add 4rd Gen models to window-hardware.c
+
+  [ Geoffrey D. Bennett ]
+  * Fix widget-boolean.c to free data on button destruction
+  * Add Arch package dependency
+  * Fix Sample Rate button to be insensitive
+  * Override focus and colour CSS button styles
+  * Search $PATH and /usr/sbin for alsactl
+  * Add support for volatile buttons to widget-boolean.c
+  * Allow for boolean controls that are backwards
+  * Update widget-boolean to cache the icon widgets
+  * Switch to embedded SVG icons
+
+  [ Guillaume ]
+  * Add missing GTK and ALSA dependencies on deb package
+
+  [ Geoffrey D. Bennett ]
+  * Add -fPIE and -pie build flags to fix flatpak build under Fedora
+  * Download and include scarlett2 firmware in flatpak
+  * Make flatpak build faster
+  * Fix up deb and RPM package description & add docs
+  * Move level meter fields out of struct alsa_card
+  * Add peak display to the level meters
+  * Use snprintf() in widget-gain.c when printing floats
+  * Add peak value display to the level meters
+  * Fix link from FAQ.md to INSTALL.md
+  * Add const to get*elem*() char* function arguments
+  * Add 3rd Gen 18i8/18i20 S/PDIF/Digital I/O Mode startup controls
+
+  [ unhappy-ending ]
+  * Update Makefile to use $(CC) rather than cc
+
+  [ Geoffrey D. Bennett ]
+  * Replace cairo_show_text() in gtkdial.c with Pango
+  * Fix crash in window-level.c on_destroy()
+  * Update flatpak to GNOME 47
+  * Update logo
+  * Add get_elem_by_substr() to alsa.[ch]
+  * Add Scarlett 1st Gen demo state files
+  * Gen 1: Handle different names for clock source and sync status
+  * Gen 1: Mute switches are backwards
+  * Gen 1: Add 1st Gen devices to window-hardware.c
+  * Gen 1: Trigger support based on "Matrix" element presence
+  * Gen 1: Add PC_OFF port category
+  * Gen 1: Ignore control "index" value in saved configurations
+  * Gen 1: Parse and save config count field
+  * Gen 1: Move alsa-sim elem creation into alsa_config_to_new_elem()
+  * Gen 1: Add support for elements with count > 1 in saved config
+  * Gen 1: Add support for 1st Gen stereo elements
+  * Gen 1: Add support for 1st Gen mixer controls
+  * Gen 1: Add support for 1st Gen input controls
+  * Gen 1: Add support for 1st Gen output controls
+  * Wrap long line, fix reopen callback comment in alsa.c
+  * Update constants for new maximum number of mux inputs and meters
+  * Treat locked ALSA elements as read-only
+  * Handle interfaces with fixed mixer inputs
+  * Handle per-channel link buttons
+  * Update routing hover to highlight corresponding source sink
+  * Highlight mixer labels on dial hover
+  * Update gtkdial to support linear-volume controls
+  * Update alsa interface and gain widget to support linear volume
+  * Make perror("fopen") messages distinct
+  * Add support for two-control speaker switching and talkback
+  * Add support for new 4th Gen control names
+  * Simplify update_levels_controls()
+  * Add support for TLVs from the FCP driver
+  * Update alsa.c to handle differing FCP mixer element names
+  * Add support for Level Meter labels
+  * Fix output control column/mute tooltip handling
+  * Move card_destroy_callback() before alsa_card_callback()
+  * Call card_destroy_callback() when an ALSA element is removed
+  * Bump copyright year to 2025
+  * Update docs and such for 1st Gen and big 4th Gen support
+  * Add big 4th Gen demo files
+  * Make make clean do depclean too
+  * Undefine _FORTIFY_SOURCE before defining so GitHub can build the deb
+  * Update flatpak container image from gnome-45 to gnome-47
+  * Remove unused start_x, start_y from gtk_dial_drag_gesture_update()
+  * Add small deadband to dial drag to stop double-click adjustments
+  * Replace -j4 with -j$(nproc)
+  * Update 1st Gen doc to mention Level Meters and Startup Controls
+  * Update startup window no-startup-controls message
+
+ -- Robert Garrett <robertgarrett404@gmail.com>  Mon, 09 Jun 2025 22:09:31 -0500
+
 alsa-scarlett-gui (0.4.0-1) UNRELEASED; urgency=low
 
   [ Guillaume ]
