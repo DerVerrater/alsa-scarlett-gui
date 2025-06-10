@@ -1,14 +1,21 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Source: https://github.com/geoffreybennett/alsa-scarlett-gui
 Upstream-Name: alsa-scarlett-gui
 Upstream-Contact: Geoffrey D. Bennet <g@b4.vu>
-Source: https://github.com/geoffreybennett/alsa-scarlett-gui
 License: GPL-3.0-or-later or LGPL-3+
 
 Files: *
-Copyright: 2022-2024 Geoffrey D. Bennet <g@b4.vu>
-           2022 KottV <kv@kott.no-ip.biz>
+Copyright:
+ 2022-2025 Geoffrey D. Bennet <g@b4.vu>
+ 2022 KottV <kv@kott.no-ip.biz>
+License: GPL-3+
 
-License: GPL-3.0-or-later or LGPL-3.0-or-later
+Files:
+ debian/*
+Copyright: 2024-2025 Robert Garrett
+License: GPL-3+
+
+License: GPL-3.0+
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
  the Free Software Foundation, either version 3 of the License, or
