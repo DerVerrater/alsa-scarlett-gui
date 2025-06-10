@@ -10,6 +10,7 @@ DEPFLAGS = -MT $@ -MMD -MP -MF $(DEPDIR)/$*.d
 
 CFLAGS := -Wall -Werror -ggdb -fno-omit-frame-pointer -O2 -D_FORTIFY_SOURCE=2
 CFLAGS += -DVERSION=\"$(VERSION)\"
+CFLAGS += -Wno-error=deprecated-declarations
 
 PKG_CONFIG=pkg-config
 
@@ -37,7 +38,9 @@ XML_OBJ := $(patsubst %.xml,%.c,$(XML_SRC))
 SRCS := $(sort $(wildcard *.c) $(XML_OBJ))
 OBJS := $(patsubst %.c,%.o,$(SRCS))
 TARGET := alsa-scarlett-gui
-DESKTOP_FILE := vu.b4.$(TARGET).desktop
+DOMAIN_PREFIX := vu.b4
+DESKTOP_FILE := $(DOMAIN_PREFIX).$(TARGET).desktop
+ICON_FILE := $(DOMAIN_PREFIX).$(TARGET).png
 
 GLIB_COMPILE_RESOURCES := $(shell $(PKG_CONFIG) --variable=glib_compile_resources gio-2.0)
 
@@ -75,13 +78,13 @@ install: all
 	install -d $(BINDIR)
 	install -m 755 $(TARGET) $(BINDIR)
 	install -d $(ICONDIR)
-	install -m 644 img/$(TARGET).png $(ICONDIR)
+	install -m 644 img/$(ICON_FILE) $(ICONDIR)
 	install -d $(DESKTOPDIR)
 	install -m 644 $(DESKTOP_FILE) $(DESKTOPDIR)
 
 uninstall:
 	rm -f $(BINDIR)/$(TARGET)
-	rm -f $(ICONDIR)/$(TARGET).png
+	rm -f $(ICONDIR)/$(ICON_FILE)
 	rm -f $(DESKTOPDIR)/$(DESKTOP_FILE)
 
 help:

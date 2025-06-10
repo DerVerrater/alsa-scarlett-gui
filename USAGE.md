@@ -1,95 +1,16 @@
 # ALSA Scarlett Gen 2/3 Control Panel Usage
 
-## Prerequisites
+Refer to [INSTALL.md](INSTALL.md) for prerequisites, how to build,
+install, and run.
 
-Linux Kernel with the ALSA Scarlett Gen 2/3 mixer driver. Use at least
-version 5.14 for Scarlett Gen 3 support and bug fixes for the Gen 2
-support.
-
-As of Linux 5.17, the driver is still disabled by default and needs to
-be enabled at module load time with the `device_setup=1` option to
-insmod/modprobe. Create a file /etc/modprobe.d/scarlett.conf
-containing the appropriate line for your device:
-
-Gen 2:
-
-- 6i6: `options snd_usb_audio vid=0x1235 pid=0x8203 device_setup=1`
-- 18i8: `options snd_usb_audio vid=0x1235 pid=0x8204 device_setup=1`
-- 18i20: `options snd_usb_audio vid=0x1235 pid=0x8201 device_setup=1`
-
-Gen 3:
-
-- Solo: `options snd_usb_audio vid=0x1235 pid=0x8211 device_setup=1`
-- 2i2: `options snd_usb_audio vid=0x1235 pid=0x8210 device_setup=1`
-- 4i4: `options snd_usb_audio vid=0x1235 pid=0x8212 device_setup=1`
-- 8i6: `options snd_usb_audio vid=0x1235 pid=0x8213 device_setup=1`
-- 18i8: `options snd_usb_audio vid=0x1235 pid=0x8214 device_setup=1`
-- 18i20: `options snd_usb_audio vid=0x1235 pid=0x8215 device_setup=1`
-
-Or you can use a sledgehammer:
-```
-options snd_usb_audio device_setup=1,1,1,1
-```
-to pass that option to the first 4 USB audio devices.
-
-To see if the driver is present and enabled: `dmesg | grep -i -A 5 -B
-5 scarlett` should display information like:
-
-```
-New USB device found, idVendor=1235, idProduct=8215, bcdDevice= 6.0b
-Product: Scarlett 18i20 USB
-Focusrite Scarlett Gen 2/3 Mixer Driver enabled pid=0x8215
-```
-
-If the driver is disabled you’ll see a message like:
-
-```
-Focusrite Scarlett Gen 2/3 Mixer Driver disabled; use options
-snd_usb_audio vid=0x1235 pid=0x8215 device_setup=1 to enable and
-report any issues to g@b4.vu",
-```
-
-## Building and Running
-
-On Fedora, the packages `alsa-lib-devel` and `gtk4-devel` need to be
-installed:
-
-```
-sudo dnf -y install alsa-lib-devel gtk4-devel
-```
-
-To build:
-
-```
-cd src
-make -j4
-```
-
-To run:
-
-```
-./alsa-scarlett-gui
-```
-
-You can install it into `/usr/local` (binary, desktop file, and icon)
-with:
-
-```
-sudo make install
-```
-
-And uninstall with:
-
-```
-sudo make uninstall
-```
+For usage instructions, read on...
 
 ## No interface connected
 
 If no interface is detected (usually because there isn’t one
 connected!) you’ll see this window:
 
-![MSD Mode](img/iface-none.png)
+![No Interface Connected](img/iface-none.png)
 
 Plug in an interface or select the menu option File → Interface
 Simulation and load a demo file to make more interesting things
@@ -125,11 +46,11 @@ The one control not accessible from the front panel is “Phantom Power
 Persistence” (menu option View → Startup) which controls the Phantom
 Power state when the interface is powered on.
 
-## Gen 2 6i6+ and Gen 3 4i4+ Interfaces
+## Gen 2 6i6+, Gen 3 4i4+, Clarett USB, and Clarett+ Interfaces
 
-The Gen 2 6i6+ and Gen 3 4i4+ interfaces have many controls available.
-The controls are split between 4 windows, 3 of which are by default
-hidden.
+The Gen 2 6i6+, Gen 3 4i4+, and Clarett interfaces have many controls
+available. The controls are split between 4 windows, 3 of which are by
+default hidden.
 
 The main window has:
 - Global Controls
@@ -223,7 +144,7 @@ level/impedance. When plugging in microphones or line-level equipment
 to the input, set it to “Line”. The “Inst” setting is for instrument
 with pickups such as guitars.
 
-#### Air (Gen 3 only)
+#### Air (Gen 3, Clarett USB, and Clarett+ only)
 
 Enabling Air will transform your recordings and inspire you while
 making music.
@@ -250,7 +171,7 @@ configuration (menu option View → Startup).
 ### Analogue Output Controls
 
 The analogue output controls let you set the output volume (gain) on
-the analogue line out and headphones outputs. All interfaces support
+the analogue line out and headphone outputs. All interfaces support
 setting the gain and muting individual channels.
 
 Click and drag up/down to change the volume, or use your mouse scroll
@@ -272,7 +193,7 @@ channels are disabled.
 There are “mute” and “dim” (reduce volume) buttons below the “HW” dial
 which affect only the outputs with “HW” control enabled. The Gen 3
 18i8 doesn’t have physical buttons or indicator lights for these
-control, but the 18i20 devices do.
+controls, but the 18i20 devices do.
 
 On the other (smaller) interfaces, the big volume knob on the front of
 the interface controls the volume of the Line 1 and 2 outputs. This is
@@ -329,13 +250,13 @@ configuration:
 
 #### Loopback
 
-Gen 2 interfaces have as many PCM Inputs as Hardware Inputs. Gen 3
-interfaces have two more PCM Inputs which the proprietary driver
-restricts to being “Loopback” inputs.
+Gen 2, Clarett USB, and Clarett+ interfaces have as many PCM Inputs as
+Hardware Inputs. Gen 3 interfaces have two more PCM Inputs which
+Focusrite Control uses as “Loopback” inputs.
 
 The “Loopback” feature advertised for Gen 3 devices is actually a
-limitation of the propretary Focusrite Control software. Both Gen 2
-and Gen 3 devices support full reassignment of the PCM Inputs, so you
+limitation of the proprietary Focusrite Control software. All devices
+(except Solo/2i2) support full reassignment of the PCM Inputs, so you
 can have any PCM Input as a “Loopback” or assigned to any other
 source.
 
@@ -351,7 +272,7 @@ to a PCM Input.
 If you use the Routing window to connect Sources to Mixer Inputs and
 Mixer Outputs to Destinations, then you can use the Mixer window to
 set the amount of each Mixer Input that is sent to each Mixer Output
-using a matrix of controls.
+using a matrix of controls:
 
 ![Mixer Window](img/window-mixer.png)
 
@@ -433,8 +354,8 @@ menu option File → Interface Simulation to load.
 - Can’t select (focus) the gain/volume controls or use a keyboard to
   adjust them.
 
-- Level (monitoring) doesn’t work yet and is disabled (needs kernel
-  driver update).
+- Level meters don’t work if you're not running the driver from Linux
+  6.7.
 
 - Load/Save uses `alsactl` which will be confused if the ALSA
   interface name (e.g. `USB`) changes.
